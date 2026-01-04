@@ -2,10 +2,12 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSessionStore } from '@/store/session';
+import { useAuthStore } from '@/store/auth';
 import type { Deck, Card, CardDirection } from '@/types';
 
 const router = useRouter();
 const sessionStore = useSessionStore();
+const authStore = useAuthStore();
 
 const decks = ref<Deck[]>([]);
 const selectedDeckId = ref<number | null>(null);
@@ -157,12 +159,26 @@ onMounted(() => {
     <header class="header">
       <h1>My Flash Cards</h1>
       <div class="header-buttons">
-        <button @click="router.push({ name: 'Progress' })" class="progress-button">
-          Progress
-        </button>
-        <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
-          Manage Decks
-        </button>
+        <template v-if="authStore.isAuthenticated">
+          <span class="user-email">{{ authStore.user?.email }}</span>
+          <button @click="router.push({ name: 'Progress' })" class="progress-button">
+            Progress
+          </button>
+          <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
+            Manage Decks
+          </button>
+          <button @click="authStore.logout" class="logout-button">
+            Logout
+          </button>
+        </template>
+        <template v-else>
+          <button @click="router.push({ name: 'Login' })" class="login-button-header">
+            Login
+          </button>
+          <button @click="router.push({ name: 'Register' })" class="register-button-header">
+            Register
+          </button>
+        </template>
       </div>
     </header>
 
@@ -314,12 +330,21 @@ onMounted(() => {
   .header-buttons {
     display: flex;
     gap: 0.75rem;
+    align-items: center;
+  }
+
+  .user-email {
+    font-size: 0.9rem;
+    color: #ecf0f1;
+    margin-right: 0.5rem;
   }
 
   .progress-button,
-  .manage-button {
+  .manage-button,
+  .logout-button,
+  .login-button-header,
+  .register-button-header {
     padding: 0.625rem 1.25rem;
-    background-color: #34495e;
     color: white;
     border: none;
     border-radius: 6px;
@@ -327,9 +352,38 @@ onMounted(() => {
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s ease;
+  }
+
+  .progress-button,
+  .manage-button {
+    background-color: #34495e;
 
     &:hover {
       background-color: #2c3e50;
+    }
+  }
+
+  .logout-button {
+    background-color: #e74c3c;
+
+    &:hover {
+      background-color: #c0392b;
+    }
+  }
+
+  .login-button-header {
+    background-color: #3498db;
+
+    &:hover {
+      background-color: #2980b9;
+    }
+  }
+
+  .register-button-header {
+    background-color: #27ae60;
+
+    &:hover {
+      background-color: #229954;
     }
   }
 }

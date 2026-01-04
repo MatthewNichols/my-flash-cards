@@ -2,11 +2,33 @@ import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 /**
+ * Users table schema
+ */
+export const users = sqliteTable('users', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name'),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+/**
+ * Sessions table schema
+ */
+export const sessions = sqliteTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
+});
+
+/**
  * Decks table schema
  */
 export const decks = sqliteTable('decks', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 

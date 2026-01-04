@@ -1,31 +1,267 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, sql, lte, and } from 'drizzle-orm';
-import { decks, cards, cardAttempts, cardSchedule } from './schema';
+import { decks, cards, cardAttempts, cardSchedule, users, sessions } from './schema';
 import type { Env, DeckResponse, CardResponse } from './types';
 import { calculateNextReview, initializeSchedule, isCardDue } from './spacedRepetition';
+import { hashPassword, verifyPassword, generateSessionId, getSessionExpiration } from './auth';
 
-const app = new Hono<{ Bindings: Env }>();
+type Variables = {
+  userId?: number;
+};
+
+const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /**
- * Enable CORS for local development
+ * Enable CORS for local development with credentials support
  */
-app.use('/*', cors());
+app.use('/*', cors({
+  origin: ['http://localhost:5173', 'http://localhost:8787'],
+  credentials: true
+}));
 
 /**
- * GET /api/decks
- * Retrieve all available decks with card counts
+ * Authentication middleware - extract user from session cookie
  */
-app.get('/api/decks', async (c) => {
+async function authMiddleware(c: any, next: any) {
+  const sessionId = getCookie(c, 'session_id');
+
+  if (sessionId) {
+    const db = drizzle(c.env.DB);
+    const now = new Date().toISOString();
+
+    const sessionResult = await db.select({
+      userId: sessions.userId,
+      expiresAt: sessions.expiresAt
+    })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .limit(1);
+
+    if (sessionResult.length > 0 && sessionResult[0].expiresAt > now) {
+      c.set('userId', sessionResult[0].userId);
+    }
+  }
+
+  await next();
+}
+
+app.use('/*', authMiddleware);
+
+/**
+ * POST /api/auth/register
+ * Register a new user account
+ */
+app.post('/api/auth/register', async (c) => {
   const db = drizzle(c.env.DB);
 
   try {
-    // Get all decks
+    const body = await c.req.json();
+    const { email, password, name } = body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return c.json({ error: 'Valid email is required' }, 400);
+    }
+
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return c.json({ error: 'Password must be at least 8 characters' }, 400);
+    }
+
+    // Check if user already exists
+    const existingUser = await db.select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      return c.json({ error: 'Email already registered' }, 409);
+    }
+
+    // Hash password and create user
+    const passwordHash = await hashPassword(password);
+    const userResult = await db.insert(users).values({
+      email: email.toLowerCase(),
+      passwordHash,
+      name: name || null
+    }).returning({
+      id: users.id,
+      email: users.email,
+      name: users.name
+    });
+
+    const user = userResult[0];
+
+    // Create session
+    const sessionId = generateSessionId();
+    const expiresAt = getSessionExpiration();
+
+    await db.insert(sessions).values({
+      id: sessionId,
+      userId: user.id,
+      expiresAt
+    });
+
+    // Set session cookie
+    setCookie(c, 'session_id', sessionId, {
+      httpOnly: true,
+      secure: false, // Set to true in production with HTTPS
+      sameSite: 'Lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/'
+    });
+
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      }
+    }, 201);
+  } catch (error) {
+    console.error('Error registering user:', error);
+    return c.json({ error: 'Failed to register user' }, 500);
+  }
+});
+
+/**
+ * POST /api/auth/login
+ * Login with email and password
+ */
+app.post('/api/auth/login', async (c) => {
+  const db = drizzle(c.env.DB);
+
+  try {
+    const body = await c.req.json();
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400);
+    }
+
+    // Find user by email
+    const userResult = await db.select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (userResult.length === 0) {
+      return c.json({ error: 'Invalid email or password' }, 401);
+    }
+
+    const user = userResult[0];
+
+    // Verify password
+    const isValid = await verifyPassword(password, user.passwordHash);
+    if (!isValid) {
+      return c.json({ error: 'Invalid email or password' }, 401);
+    }
+
+    // Create session
+    const sessionId = generateSessionId();
+    const expiresAt = getSessionExpiration();
+
+    await db.insert(sessions).values({
+      id: sessionId,
+      userId: user.id,
+      expiresAt
+    });
+
+    // Set session cookie
+    setCookie(c, 'session_id', sessionId, {
+      httpOnly: true,
+      secure: false, // Set to true in production with HTTPS
+      sameSite: 'Lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/'
+    });
+
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name
+      }
+    });
+  } catch (error) {
+    console.error('Error logging in:', error);
+    return c.json({ error: 'Failed to login' }, 500);
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Logout and destroy session
+ */
+app.post('/api/auth/logout', async (c) => {
+  const sessionId = getCookie(c, 'session_id');
+
+  if (sessionId) {
+    const db = drizzle(c.env.DB);
+
+    try {
+      await db.delete(sessions).where(eq(sessions.id, sessionId));
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  }
+
+  deleteCookie(c, 'session_id', { path: '/' });
+
+  return c.json({ success: true });
+});
+
+/**
+ * GET /api/auth/me
+ * Get current user information
+ */
+app.get('/api/auth/me', async (c) => {
+  const userId = c.get('userId');
+
+  if (!userId) {
+    return c.json({ error: 'Not authenticated' }, 401);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  try {
+    const userResult = await db.select({
+      id: users.id,
+      email: users.email,
+      name: users.name
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+    if (userResult.length === 0) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    return c.json({ user: userResult[0] });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    return c.json({ error: 'Failed to fetch user' }, 500);
+  }
+});
+
+/**
+ * GET /api/decks
+ * Retrieve all decks for the current user with card counts
+ */
+app.get('/api/decks', async (c) => {
+  const userId = c.get('userId');
+  const db = drizzle(c.env.DB);
+
+  try {
+    // Get all decks for user (or all decks if no user - backward compatibility)
     const allDecks = await db.select({
       id: decks.id,
       name: decks.name
-    }).from(decks);
+    })
+    .from(decks)
+    .where(userId ? eq(decks.userId, userId) : sql`1=1`);
 
     // Get card counts for each deck
     const response: DeckResponse[] = await Promise.all(
@@ -92,9 +328,10 @@ app.get('/api/decks/:deckId/cards', async (c) => {
 
 /**
  * POST /api/decks
- * Create a new deck
+ * Create a new deck for the current user
  */
 app.post('/api/decks', async (c) => {
+  const userId = c.get('userId');
   const db = drizzle(c.env.DB);
 
   try {
@@ -106,7 +343,8 @@ app.post('/api/decks', async (c) => {
     }
 
     const result = await db.insert(decks).values({
-      name: name.trim()
+      name: name.trim(),
+      userId: userId || null // Allow null for backward compatibility
     }).returning({
       id: decks.id,
       name: decks.name
@@ -553,9 +791,10 @@ app.get('/api/decks/:deckId/export', async (c) => {
 
 /**
  * POST /api/decks/import
- * Import a deck from JSON data
+ * Import a deck from JSON data for the current user
  */
 app.post('/api/decks/import', async (c) => {
+  const userId = c.get('userId');
   const db = drizzle(c.env.DB);
 
   try {
@@ -568,7 +807,8 @@ app.post('/api/decks/import', async (c) => {
 
     // Create the deck
     const deckResult = await db.insert(decks).values({
-      name: deck.name.trim()
+      name: deck.name.trim(),
+      userId: userId || null // Allow null for backward compatibility
     }).returning({
       id: decks.id,
       name: decks.name
