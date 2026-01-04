@@ -7,6 +7,7 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 
 const isFlipped = ref<boolean>(false);
+const isTransitioning = ref<boolean>(false);
 
 /**
  * Progress percentage for visual feedback
@@ -34,20 +35,26 @@ function flipCard(): void {
  * Record answer and move to next card
  */
 function answerCard(correct: boolean): void {
-  sessionStore.recordResult(correct);
+  // Start transition - fade out content
+  isTransitioning.value = true;
+
+  // Flip card back first
   isFlipped.value = false;
 
-  if (sessionStore.isSessionComplete) {
-    router.push({ name: 'SessionResults' });
-  }
+  // Wait for flip animation to complete, then move to next card
+  setTimeout(() => {
+    sessionStore.recordResult(correct);
+
+    if (sessionStore.isSessionComplete) {
+      router.push({ name: 'SessionResults' });
+    } else {
+      // Fade content back in
+      setTimeout(() => {
+        isTransitioning.value = false;
+      }, 50);
+    }
+  }, 300);
 }
-
-/**
- * Watch for card changes to reset flip state
- */
-watch(() => sessionStore.currentCardIndex, () => {
-  isFlipped.value = false;
-});
 </script>
 
 <template>
@@ -74,20 +81,24 @@ watch(() => sessionStore.currentCardIndex, () => {
       <div v-else class="card-container">
         <div class="card" :class="{ flipped: isFlipped }" @click="flipCard">
           <div class="card-face card-front">
-            <div class="card-label">
-              {{ sessionStore.direction === 'spanish-to-english' ? 'Spanish' : 'English' }}
+            <div class="card-content" :class="{ 'fade-out': isTransitioning }">
+              <div class="card-label">
+                {{ sessionStore.direction === 'spanish-to-english' ? 'Spanish' : 'English' }}
+              </div>
+              <div class="card-text">
+                {{ sessionStore.frontText }}
+              </div>
+              <div class="card-hint">Click to reveal</div>
             </div>
-            <div class="card-text">
-              {{ sessionStore.frontText }}
-            </div>
-            <div class="card-hint">Click to reveal</div>
           </div>
           <div class="card-face card-back">
-            <div class="card-label">
-              {{ sessionStore.direction === 'spanish-to-english' ? 'English' : 'Spanish' }}
-            </div>
-            <div class="card-text">
-              {{ sessionStore.backText }}
+            <div class="card-content" :class="{ 'fade-out': isTransitioning }">
+              <div class="card-label">
+                {{ sessionStore.direction === 'spanish-to-english' ? 'English' : 'Spanish' }}
+              </div>
+              <div class="card-text">
+                {{ sessionStore.backText }}
+              </div>
             </div>
           </div>
         </div>
@@ -220,6 +231,20 @@ watch(() => sessionStore.currentCardIndex, () => {
 
     .card-back {
       transform: rotateY(0deg);
+    }
+  }
+
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    opacity: 1;
+    transition: opacity 0.2s ease;
+
+    &.fade-out {
+      opacity: 0;
     }
   }
 
