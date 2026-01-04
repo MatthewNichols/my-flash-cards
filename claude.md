@@ -178,16 +178,29 @@
 - "Quick quiz" mode (Phase 4)
 - Random direction mode (Phase 4)
 
-### Phase 4: Polish and Advanced Features
+### Phase 4: Polish and Advanced Features ✅
 **Goal:** Add authentication and additional practice modes
 
 **What's Included:**
 - ✅ Quick quiz mode (1-5 card rapid practice)
 - ✅ Random direction mode (system chooses Spanish→English or English→Spanish per card)
 - ✅ Card tags/categories for filtering
-- Export/import deck functionality
-- Authentication via Cloudflare Access (deferred)
-- Basic User Profile page (name, email, preferences - foundation for future features) (deferred)
+- ✅ Export/import deck functionality
+- ✅ User authentication (password-based accounts with secure hashing)
+- ✅ User-scoped decks (each user sees only their own decks)
+- ✅ Login/Register views with beautiful UI
+- ✅ Session management (30-day cookie-based sessions)
+
+**Authentication Implementation:**
+- Backend: PBKDF2 password hashing with 100,000 iterations
+- Database: users and sessions tables, userId foreign key on decks
+- API endpoints: /api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/me
+- Frontend: Auth store, Login view, Register view, navigation guards
+- Security: HttpOnly cookies, CORS with credentials, secure session management
+
+**Deferred to Backlog:**
+- Cloudflare Access integration (OAuth/SSO)
+- User Profile page (preferences, account settings)
 
 ## Backlog
 Features planned for future development:
