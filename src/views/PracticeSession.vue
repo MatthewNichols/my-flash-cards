@@ -34,12 +34,18 @@ function flipCard(): void {
 /**
  * Record answer and move to next card
  */
-function answerCard(correct: boolean): void {
+async function answerCard(correct: boolean): Promise<void> {
+  const currentCard = sessionStore.currentCard;
+  if (!currentCard) return;
+
   // Start transition - fade out content
   isTransitioning.value = true;
 
   // Flip card back first
   isFlipped.value = false;
+
+  // Record attempt to database (async, don't wait for it)
+  recordAttemptToDatabase(currentCard.id, correct);
 
   // Wait for flip animation to complete, then move to next card
   setTimeout(() => {
@@ -54,6 +60,24 @@ function answerCard(correct: boolean): void {
       }, 50);
     }
   }, 300);
+}
+
+/**
+ * Record card attempt to database for spaced repetition tracking
+ */
+async function recordAttemptToDatabase(cardId: number, correct: boolean): Promise<void> {
+  try {
+    await fetch('/api/attempts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ cardId, correct })
+    });
+  } catch (error) {
+    // Silently fail - don't interrupt user experience
+    console.error('Failed to record attempt:', error);
+  }
 }
 </script>
 

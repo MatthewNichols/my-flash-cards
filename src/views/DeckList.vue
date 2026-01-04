@@ -34,7 +34,7 @@ async function fetchDecks(): Promise<void> {
 }
 
 /**
- * Start practice session with selected deck and direction
+ * Start practice session with all cards in selected deck
  */
 async function startPractice(): Promise<void> {
   if (!selectedDeckId.value) return;
@@ -63,6 +63,36 @@ async function startPractice(): Promise<void> {
   }
 }
 
+/**
+ * Start review session with only due cards
+ */
+async function startReview(): Promise<void> {
+  if (!selectedDeckId.value) return;
+
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await fetch(`/api/decks/${selectedDeckId.value}/due-cards`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch due cards');
+    }
+    const cards: Card[] = await response.json();
+
+    if (cards.length === 0) {
+      error.value = 'No cards are due for review yet! Great job keeping up!';
+      return;
+    }
+
+    sessionStore.startSession(cards, selectedDirection.value);
+    router.push({ name: 'PracticeSession', params: { deckId: selectedDeckId.value } });
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'An error occurred';
+  } finally {
+    loading.value = false;
+  }
+}
+
 onMounted(() => {
   fetchDecks();
 });
@@ -72,9 +102,14 @@ onMounted(() => {
   <div class="deck-list-container">
     <header class="header">
       <h1>My Flash Cards</h1>
-      <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
-        Manage Decks
-      </button>
+      <div class="header-buttons">
+        <button @click="router.push({ name: 'Progress' })" class="progress-button">
+          Progress
+        </button>
+        <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
+          Manage Decks
+        </button>
+      </div>
     </header>
 
     <main class="main-content">
@@ -125,13 +160,22 @@ onMounted(() => {
             </label>
           </div>
 
-          <button
-            class="start-button"
-            @click="startPractice"
-            :disabled="loading"
-          >
-            Start Practice
-          </button>
+          <div class="practice-buttons">
+            <button
+              class="start-button review"
+              @click="startReview"
+              :disabled="loading"
+            >
+              Review Due Cards
+            </button>
+            <button
+              class="start-button practice"
+              @click="startPractice"
+              :disabled="loading"
+            >
+              Practice All Cards
+            </button>
+          </div>
         </div>
       </div>
     </main>
@@ -158,6 +202,12 @@ onMounted(() => {
     font-weight: 600;
   }
 
+  .header-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .progress-button,
   .manage-button {
     padding: 0.625rem 1.25rem;
     background-color: #34495e;
@@ -303,20 +353,36 @@ onMounted(() => {
   }
 }
 
+.practice-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
 .start-button {
-  width: 100%;
+  flex: 1;
   padding: 1rem;
   font-size: 1.1rem;
   font-weight: 600;
   color: white;
-  background-color: #3498db;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 
-  &:hover:not(:disabled) {
-    background-color: #2980b9;
+  &.review {
+    background-color: #27ae60;
+
+    &:hover:not(:disabled) {
+      background-color: #229954;
+    }
+  }
+
+  &.practice {
+    background-color: #3498db;
+
+    &:hover:not(:disabled) {
+      background-color: #2980b9;
+    }
   }
 
   &:disabled {
@@ -335,6 +401,12 @@ onMounted(() => {
       font-size: 1.5rem;
     }
 
+    .header-buttons {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .progress-button,
     .manage-button {
       width: 100%;
     }
@@ -350,6 +422,10 @@ onMounted(() => {
 
   .direction-selection {
     padding: 1.5rem;
+  }
+
+  .practice-buttons {
+    flex-direction: column;
   }
 }
 </style>

@@ -4,6 +4,7 @@ import PracticeSession from '@/views/PracticeSession.vue';
 import SessionResults from '@/views/SessionResults.vue';
 import DeckManagement from '@/views/DeckManagement.vue';
 import CardBrowser from '@/views/CardBrowser.vue';
+import Progress from '@/views/Progress.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -31,6 +32,11 @@ const routes: RouteRecordRaw[] = [
     path: '/manage/:deckId/cards',
     name: 'CardBrowser',
     component: CardBrowser
+  },
+  {
+    path: '/progress',
+    name: 'Progress',
+    component: Progress
   }
 ];
 

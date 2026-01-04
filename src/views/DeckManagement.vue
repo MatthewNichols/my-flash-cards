@@ -168,9 +168,14 @@ onMounted(() => {
   <div class="deck-management-container">
     <header class="header">
       <h1>Manage Decks</h1>
-      <button @click="router.push({ name: 'DeckList' })" class="back-button">
-        ← Back to Practice
-      </button>
+      <div class="header-buttons">
+        <button @click="router.push({ name: 'Progress' })" class="progress-button">
+          Progress
+        </button>
+        <button @click="router.push({ name: 'DeckList' })" class="back-button">
+          ← Back to Practice
+        </button>
+      </div>
     </header>
 
     <main class="main-content">
@@ -291,6 +296,12 @@ onMounted(() => {
     font-weight: 600;
   }
 
+  .header-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .progress-button,
   .back-button {
     padding: 0.5rem 1rem;
     background-color: #34495e;
@@ -568,6 +579,16 @@ onMounted(() => {
 
     h1 {
       font-size: 1.5rem;
+    }
+
+    .header-buttons {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .progress-button,
+    .back-button {
+      width: 100%;
     }
   }
 
