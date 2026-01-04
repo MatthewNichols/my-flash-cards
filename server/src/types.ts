@@ -19,4 +19,5 @@ export interface CardResponse {
   frontText: string;
   backText: string;
   deckId: number;
+  tags?: string;
 }

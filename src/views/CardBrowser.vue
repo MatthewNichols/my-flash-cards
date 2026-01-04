@@ -229,6 +229,15 @@ onMounted(async () => {
               <span class="card-text">{{ card.backText }}</span>
             </div>
           </div>
+          <div v-if="card.tags" class="card-tags">
+            <span
+              v-for="tag in card.tags.split(',').filter(t => t.trim())"
+              :key="tag"
+              class="tag"
+            >
+              {{ tag.trim() }}
+            </span>
+          </div>
           <div class="card-actions">
             <button
               @click="startEditing(card)"
@@ -349,6 +358,7 @@ onMounted(async () => {
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
@@ -385,6 +395,25 @@ onMounted(async () => {
   font-size: 1.5rem;
   color: #bdc3c7;
   font-weight: 300;
+}
+
+.card-tags {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #ecf0f1;
+
+  .tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
 }
 
 .card-actions {

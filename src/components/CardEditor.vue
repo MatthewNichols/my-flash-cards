@@ -14,12 +14,13 @@ const props = defineProps<{
  * Component emits
  */
 const emit = defineEmits<{
-  save: [card: { frontText: string; backText: string }];
+  save: [card: { frontText: string; backText: string; tags?: string }];
   cancel: [];
 }>();
 
 const frontText = ref<string>(props.card?.frontText || '');
 const backText = ref<string>(props.card?.backText || '');
+const tags = ref<string>(props.card?.tags || '');
 const error = ref<string>('');
 
 /**
@@ -28,6 +29,7 @@ const error = ref<string>('');
 watch(() => props.card, (newCard) => {
   frontText.value = newCard?.frontText || '';
   backText.value = newCard?.backText || '';
+  tags.value = newCard?.tags || '';
   error.value = '';
 });
 
@@ -49,7 +51,8 @@ function saveCard(): void {
 
   emit('save', {
     frontText: frontText.value.trim(),
-    backText: backText.value.trim()
+    backText: backText.value.trim(),
+    tags: tags.value.trim()
   });
 }
 
@@ -89,6 +92,19 @@ function cancel(): void {
         @keyup.enter="saveCard"
         @keyup.escape="cancel"
       />
+    </div>
+
+    <div class="form-group">
+      <label for="tags">Tags (optional)</label>
+      <input
+        id="tags"
+        v-model="tags"
+        type="text"
+        placeholder="e.g., food, verbs, beginner (comma-separated)"
+        @keyup.enter="saveCard"
+        @keyup.escape="cancel"
+      />
+      <small class="hint">Separate tags with commas</small>
     </div>
 
     <div class="button-group">
@@ -152,6 +168,13 @@ function cancel(): void {
     &::placeholder {
       color: #bdc3c7;
     }
+  }
+
+  .hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: #7f8c8d;
   }
 }
 

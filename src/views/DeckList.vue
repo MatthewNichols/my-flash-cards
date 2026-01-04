@@ -11,6 +11,7 @@ const decks = ref<Deck[]>([]);
 const selectedDeckId = ref<number | null>(null);
 const selectedDirection = ref<CardDirection>('spanish-to-english');
 const quizSize = ref<number | null>(null);
+const selectedTags = ref<string>('');
 const loading = ref<boolean>(false);
 const error = ref<string>('');
 
@@ -55,6 +56,21 @@ async function startPractice(): Promise<void> {
       return;
     }
 
+    // Filter by tags if selected
+    if (selectedTags.value.trim()) {
+      const filterTags = selectedTags.value.split(',').map(t => t.trim().toLowerCase());
+      cards = cards.filter(card => {
+        if (!card.tags) return false;
+        const cardTags = card.tags.split(',').map(t => t.trim().toLowerCase());
+        return filterTags.some(filterTag => cardTags.includes(filterTag));
+      });
+
+      if (cards.length === 0) {
+        error.value = `No cards found with tags: ${selectedTags.value}`;
+        return;
+      }
+    }
+
     // If quiz size is selected, randomly select that many cards
     if (quizSize.value && quizSize.value < cards.length) {
       cards = shuffleArray(cards).slice(0, quizSize.value);
@@ -88,6 +104,21 @@ async function startReview(): Promise<void> {
     if (cards.length === 0) {
       error.value = 'No cards are due for review yet! Great job keeping up!';
       return;
+    }
+
+    // Filter by tags if selected
+    if (selectedTags.value.trim()) {
+      const filterTags = selectedTags.value.split(',').map(t => t.trim().toLowerCase());
+      cards = cards.filter(card => {
+        if (!card.tags) return false;
+        const cardTags = card.tags.split(',').map(t => t.trim().toLowerCase());
+        return filterTags.some(filterTag => cardTags.includes(filterTag));
+      });
+
+      if (cards.length === 0) {
+        error.value = `No due cards found with tags: ${selectedTags.value}`;
+        return;
+      }
     }
 
     // If quiz size is selected, randomly select that many cards
@@ -225,6 +256,17 @@ onMounted(() => {
               />
               <span>5 Cards</span>
             </label>
+          </div>
+
+          <h3>Filter by Tags (Optional)</h3>
+          <div class="tags-filter">
+            <input
+              v-model="selectedTags"
+              type="text"
+              placeholder="e.g., food, verbs (comma-separated)"
+              class="tags-input"
+            />
+            <small class="hint">Enter tags to practice only matching cards</small>
           </div>
 
           <div class="practice-buttons">
@@ -446,6 +488,35 @@ onMounted(() => {
     width: 1.1rem;
     height: 1.1rem;
     cursor: pointer;
+  }
+}
+
+.tags-filter {
+  margin-bottom: 2rem;
+
+  .tags-input {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transition: border-color 0.2s ease;
+    margin-bottom: 0.5rem;
+
+    &:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+
+    &::placeholder {
+      color: #bdc3c7;
+    }
+  }
+
+  .hint {
+    display: block;
+    font-size: 0.8rem;
+    color: #7f8c8d;
   }
 }
 

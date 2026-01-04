@@ -15,6 +15,7 @@ export interface Card {
   frontText: string;
   backText: string;
   deckId: number;
+  tags?: string;
 }
 
 /**

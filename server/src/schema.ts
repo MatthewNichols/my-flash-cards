@@ -18,6 +18,7 @@ export const cards = sqliteTable('cards', {
   frontText: text('front_text').notNull(),
   backText: text('back_text').notNull(),
   deckId: integer('deck_id').notNull().references(() => decks.id, { onDelete: 'cascade' }),
+  tags: text('tags').default(''),
   createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`)
 });
 

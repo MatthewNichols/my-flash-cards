@@ -8,6 +8,7 @@
     "deploy": "wrangler deploy",
     "db:migrate": "wrangler d1 execute flash-cards-db --local --file=./migrations/schema.sql",
     "db:migrate:progress": "wrangler d1 execute flash-cards-db --local --file=./migrations/002_add_progress_tracking.sql",
+    "db:migrate:tags": "wrangler d1 execute flash-cards-db --local --file=./migrations/003_add_card_tags.sql",
     "db:seed": "wrangler d1 execute flash-cards-db --local --file=./migrations/seed.sql"
   },
   "dependencies": {

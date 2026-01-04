@@ -69,7 +69,8 @@ app.get('/api/decks/:deckId/cards', async (c) => {
       id: cards.id,
       frontText: cards.frontText,
       backText: cards.backText,
-      deckId: cards.deckId
+      deckId: cards.deckId,
+      tags: cards.tags
     })
     .from(cards)
     .where(eq(cards.deckId, deckId));
@@ -78,7 +79,8 @@ app.get('/api/decks/:deckId/cards', async (c) => {
       id: card.id,
       frontText: card.frontText,
       backText: card.backText,
-      deckId: card.deckId
+      deckId: card.deckId,
+      tags: card.tags || ''
     }));
 
     return c.json(response);
@@ -132,7 +134,7 @@ app.post('/api/decks/:deckId/cards', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { frontText, backText } = body;
+    const { frontText, backText, tags } = body;
 
     if (!frontText || typeof frontText !== 'string' || frontText.trim().length === 0) {
       return c.json({ error: 'Front text is required' }, 400);
@@ -145,12 +147,14 @@ app.post('/api/decks/:deckId/cards', async (c) => {
     const result = await db.insert(cards).values({
       frontText: frontText.trim(),
       backText: backText.trim(),
-      deckId
+      deckId,
+      tags: tags ? tags.trim() : ''
     }).returning({
       id: cards.id,
       frontText: cards.frontText,
       backText: cards.backText,
-      deckId: cards.deckId
+      deckId: cards.deckId,
+      tags: cards.tags
     });
 
     return c.json(result[0], 201);
@@ -175,7 +179,7 @@ app.put('/api/cards/:cardId', async (c) => {
 
   try {
     const body = await c.req.json();
-    const { frontText, backText } = body;
+    const { frontText, backText, tags } = body;
 
     if (!frontText || typeof frontText !== 'string' || frontText.trim().length === 0) {
       return c.json({ error: 'Front text is required' }, 400);
@@ -188,14 +192,16 @@ app.put('/api/cards/:cardId', async (c) => {
     const result = await db.update(cards)
       .set({
         frontText: frontText.trim(),
-        backText: backText.trim()
+        backText: backText.trim(),
+        tags: tags !== undefined ? tags.trim() : undefined
       })
       .where(eq(cards.id, cardId))
       .returning({
         id: cards.id,
         frontText: cards.frontText,
         backText: cards.backText,
-        deckId: cards.deckId
+        deckId: cards.deckId,
+        tags: cards.tags
       });
 
     if (result.length === 0) {
@@ -394,6 +400,7 @@ app.get('/api/decks/:deckId/due-cards', async (c) => {
       frontText: cards.frontText,
       backText: cards.backText,
       deckId: cards.deckId,
+      tags: cards.tags,
       nextReviewDate: cardSchedule.nextReviewDate,
       intervalDays: cardSchedule.intervalDays,
       repetitions: cardSchedule.repetitions
@@ -411,7 +418,8 @@ app.get('/api/decks/:deckId/due-cards', async (c) => {
       id: card.id,
       frontText: card.frontText,
       backText: card.backText,
-      deckId: card.deckId
+      deckId: card.deckId,
+      tags: card.tags || ''
     }));
 
     return c.json(response);
