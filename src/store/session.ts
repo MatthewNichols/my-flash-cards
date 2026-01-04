@@ -10,6 +10,7 @@ export const useSessionStore = defineStore('session', () => {
   const direction = ref<CardDirection>('spanish-to-english');
   const currentCardIndex = ref<number>(0);
   const results = ref<CardResult[]>([]);
+  const currentCardDirection = ref<'spanish-to-english' | 'english-to-spanish'>('spanish-to-english');
 
   /**
    * Get the current card being practiced
@@ -26,7 +27,7 @@ export const useSessionStore = defineStore('session', () => {
    */
   const frontText = computed((): string => {
     if (!currentCard.value) return '';
-    return direction.value === 'spanish-to-english'
+    return currentCardDirection.value === 'spanish-to-english'
       ? currentCard.value.frontText
       : currentCard.value.backText;
   });
@@ -36,7 +37,7 @@ export const useSessionStore = defineStore('session', () => {
    */
   const backText = computed((): string => {
     if (!currentCard.value) return '';
-    return direction.value === 'spanish-to-english'
+    return currentCardDirection.value === 'spanish-to-english'
       ? currentCard.value.backText
       : currentCard.value.frontText;
   });
@@ -61,6 +62,13 @@ export const useSessionStore = defineStore('session', () => {
   });
 
   /**
+   * Randomly choose a direction for current card
+   */
+  function randomizeCurrentDirection(): void {
+    currentCardDirection.value = Math.random() < 0.5 ? 'spanish-to-english' : 'english-to-spanish';
+  }
+
+  /**
    * Initialize a new practice session
    */
   function startSession(sessionCards: Card[], sessionDirection: CardDirection): void {
@@ -68,6 +76,13 @@ export const useSessionStore = defineStore('session', () => {
     direction.value = sessionDirection;
     currentCardIndex.value = 0;
     results.value = [];
+
+    // Set initial direction for first card
+    if (sessionDirection === 'random') {
+      randomizeCurrentDirection();
+    } else {
+      currentCardDirection.value = sessionDirection;
+    }
   }
 
   /**
@@ -82,6 +97,11 @@ export const useSessionStore = defineStore('session', () => {
     });
 
     currentCardIndex.value++;
+
+    // If random mode, choose new direction for next card
+    if (direction.value === 'random' && currentCardIndex.value < cards.value.length) {
+      randomizeCurrentDirection();
+    }
   }
 
   /**
@@ -92,12 +112,14 @@ export const useSessionStore = defineStore('session', () => {
     direction.value = 'spanish-to-english';
     currentCardIndex.value = 0;
     results.value = [];
+    currentCardDirection.value = 'spanish-to-english';
   }
 
   return {
     cards,
     direction,
     currentCardIndex,
+    currentCardDirection,
     results,
     currentCard,
     frontText,

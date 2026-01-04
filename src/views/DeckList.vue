@@ -181,6 +181,14 @@ onMounted(() => {
               />
               <span>English → Spanish</span>
             </label>
+            <label class="direction-option">
+              <input
+                type="radio"
+                v-model="selectedDirection"
+                value="random"
+              />
+              <span>🎲 Random (changes each card)</span>
+            </label>
           </div>
 
           <h3>Quick Quiz (Optional)</h3>

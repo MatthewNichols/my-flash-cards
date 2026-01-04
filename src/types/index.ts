@@ -20,7 +20,7 @@ export interface Card {
 /**
  * Direction of card practice
  */
-export type CardDirection = 'spanish-to-english' | 'english-to-spanish';
+export type CardDirection = 'spanish-to-english' | 'english-to-spanish' | 'random';
 
 /**
  * Result of a single card attempt

@@ -107,7 +107,7 @@ async function recordAttemptToDatabase(cardId: number, correct: boolean): Promis
           <div class="card-face card-front">
             <div class="card-content" :class="{ 'fade-out': isTransitioning }">
               <div class="card-label">
-                {{ sessionStore.direction === 'spanish-to-english' ? 'Spanish' : 'English' }}
+                {{ sessionStore.currentCardDirection === 'spanish-to-english' ? 'Spanish' : 'English' }}
               </div>
               <div class="card-text">
                 {{ sessionStore.frontText }}
@@ -118,7 +118,7 @@ async function recordAttemptToDatabase(cardId: number, correct: boolean): Promis
           <div class="card-face card-back">
             <div class="card-content" :class="{ 'fade-out': isTransitioning }">
               <div class="card-label">
-                {{ sessionStore.direction === 'spanish-to-english' ? 'English' : 'Spanish' }}
+                {{ sessionStore.currentCardDirection === 'spanish-to-english' ? 'English' : 'Spanish' }}
               </div>
               <div class="card-text">
                 {{ sessionStore.backText }}
