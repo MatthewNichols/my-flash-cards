@@ -72,6 +72,9 @@ onMounted(() => {
   <div class="deck-list-container">
     <header class="header">
       <h1>My Flash Cards</h1>
+      <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
+        Manage Decks
+      </button>
     </header>
 
     <main class="main-content">
@@ -82,7 +85,10 @@ onMounted(() => {
         <h2>Select a Deck</h2>
 
         <div v-if="decks.length === 0" class="empty-state">
-          No decks available
+          <p>No decks available</p>
+          <button @click="router.push({ name: 'DeckManagement' })" class="create-deck-button">
+            Create Your First Deck
+          </button>
         </div>
 
         <div v-else class="deck-list">
@@ -94,6 +100,7 @@ onMounted(() => {
             @click="selectedDeckId = deck.id"
           >
             <h3>{{ deck.name }}</h3>
+            <p class="card-count">{{ deck.cardCount || 0 }} cards</p>
           </div>
         </div>
 
@@ -142,11 +149,29 @@ onMounted(() => {
   background-color: #2c3e50;
   color: white;
   padding: 1.5rem;
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 
   h1 {
     font-size: 2rem;
     font-weight: 600;
+  }
+
+  .manage-button {
+    padding: 0.625rem 1.25rem;
+    background-color: #34495e;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #2c3e50;
+    }
   }
 }
 
@@ -158,16 +183,44 @@ onMounted(() => {
   width: 100%;
 }
 
-.loading,
-.error,
-.empty-state {
+.loading {
   text-align: center;
   padding: 2rem;
   font-size: 1.2rem;
 }
 
 .error {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
   color: #e74c3c;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+
+  p {
+    font-size: 1.2rem;
+    color: #7f8c8d;
+    margin-bottom: 1.5rem;
+  }
+
+  .create-deck-button {
+    padding: 1rem 2rem;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: #229954;
+    }
+  }
 }
 
 .deck-selection {
@@ -207,6 +260,12 @@ onMounted(() => {
   h3 {
     font-size: 1.25rem;
     color: #2c3e50;
+    margin-bottom: 0.5rem;
+  }
+
+  .card-count {
+    font-size: 0.9rem;
+    color: #7f8c8d;
   }
 }
 
@@ -267,8 +326,18 @@ onMounted(() => {
 }
 
 @media (max-width: 600px) {
-  .header h1 {
-    font-size: 1.5rem;
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .manage-button {
+      width: 100%;
+    }
   }
 
   .main-content {

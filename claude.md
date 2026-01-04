@@ -108,10 +108,87 @@
 - Can see session results
 - Works on mobile, tablet, and desktop viewports
 
-### Future Phases
-- Phase 2: Card creation UI, authentication, progress tracking
-- Phase 3: Spaced repetition algorithm, multiple decks
-- Phase 4: Images, quick quiz mode, random direction mode
+### Phase 2: Card and Deck Management
+**Goal:** Enable creating and managing flashcards and decks through the UI
+
+**Core User Flow:**
+1. Create new decks with custom names
+2. Add new cards to existing decks (Spanish word + English translation)
+3. Edit existing cards
+4. Delete cards
+5. View all cards in a deck (browse mode)
+
+**What's Included:**
+- Backend:
+  - API endpoints:
+    - `POST /api/decks` - Create new deck
+    - `POST /api/decks/:deckId/cards` - Create new card
+    - `PUT /api/cards/:cardId` - Update existing card
+    - `DELETE /api/cards/:cardId` - Delete card
+    - `GET /api/decks` - Update to include card count
+- Frontend:
+  - DeckManagement view (create/edit/delete decks)
+  - CardEditor component (form for adding/editing cards)
+  - CardBrowser view (view and manage all cards in a deck)
+  - Navigation updates (add management section)
+  - Form validation for card creation
+
+**Explicitly Deferred to Future Phases:**
+- Authentication (still deferred - Phase 4)
+- Progress tracking over time (Phase 3)
+- Spaced repetition algorithm (Phase 3)
+- Images on cards (Phase 4)
+- "Quick quiz" mode (Phase 4)
+- Random direction mode (Phase 4)
+- Bulk card import/export
+
+**Acceptance Criteria:**
+- Can create a new deck with a custom name
+- Can add new Spanish-English card pairs to any deck
+- Can edit existing cards
+- Can delete cards
+- Can browse all cards in a deck
+- Form validation prevents empty cards
+- All CRUD operations persist to database
+
+### Phase 3: Progress Tracking and Spaced Repetition
+**Goal:** Track learning progress over time and implement intelligent card scheduling
+
+**Core User Flow:**
+1. System tracks each card attempt (correct/incorrect, timestamp)
+2. Cards are scheduled based on spaced repetition algorithm
+3. View historical performance stats per deck
+4. See which cards need review
+
+**What's Included:**
+- Backend:
+  - New table: `card_attempts` (card_id, correct, timestamp)
+  - New table: `card_schedule` (card_id, next_review_date, interval, ease_factor)
+  - Spaced repetition algorithm implementation (SM-2 or similar)
+  - API endpoints for progress data
+- Frontend:
+  - Progress dashboard view (stats over time)
+  - Scheduled review mode (practice only due cards)
+  - Performance indicators per card
+  - Study streak tracking
+
+**Explicitly Deferred:**
+- Authentication (Phase 4)
+- Images on cards (Phase 4)
+- "Quick quiz" mode (Phase 4)
+- Random direction mode (Phase 4)
+
+### Phase 4: Polish and Advanced Features
+**Goal:** Add authentication, images, and additional practice modes
+
+**What's Included:**
+- Authentication via Cloudflare Access
+- Basic User Profile page (name, email, preferences - foundation for future features)
+- Image support (R2 storage for card images)
+- Quick quiz mode (1-5 card rapid practice)
+- Random direction mode (system chooses Spanish→English or English→Spanish per card)
+- Card tags/categories for filtering
+- Export/import deck functionality
 
 ## Common Tasks
 - How to add a new flash card deck & cards

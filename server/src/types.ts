@@ -11,6 +11,7 @@ export interface Env {
 export interface DeckResponse {
   id: number;
   name: string;
+  cardCount?: number;
 }
 
 export interface CardResponse {

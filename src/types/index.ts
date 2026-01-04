@@ -4,6 +4,7 @@
 export interface Deck {
   id: number;
   name: string;
+  cardCount?: number;
 }
 
 /**
