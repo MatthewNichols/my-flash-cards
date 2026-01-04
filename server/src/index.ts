@@ -21,17 +21,28 @@ app.get('/api/decks', async (c) => {
   const db = drizzle(c.env.DB);
 
   try {
+    // Get all decks
     const allDecks = await db.select({
       id: decks.id,
-      name: decks.name,
-      cardCount: sql<number>`(SELECT COUNT(*) FROM ${cards} WHERE ${cards.deckId} = ${decks.id})`
+      name: decks.name
     }).from(decks);
 
-    const response: DeckResponse[] = allDecks.map(deck => ({
-      id: deck.id,
-      name: deck.name,
-      cardCount: deck.cardCount
-    }));
+    // Get card counts for each deck
+    const response: DeckResponse[] = await Promise.all(
+      allDecks.map(async (deck) => {
+        const countResult = await db.select({
+          count: sql<number>`count(*)`
+        })
+        .from(cards)
+        .where(eq(cards.deckId, deck.id));
+
+        return {
+          id: deck.id,
+          name: deck.name,
+          cardCount: countResult[0]?.count || 0
+        };
+      })
+    );
 
     return c.json(response);
   } catch (error) {
