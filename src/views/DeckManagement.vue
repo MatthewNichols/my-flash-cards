@@ -10,6 +10,8 @@ const loading = ref<boolean>(false);
 const error = ref<string>('');
 const showCreateForm = ref<boolean>(false);
 const newDeckName = ref<string>('');
+const editingDeckId = ref<number | null>(null);
+const editingDeckName = ref<string>('');
 
 /**
  * Fetch all decks
@@ -60,6 +62,61 @@ async function createDeck(): Promise<void> {
     decks.value.push(newDeck);
     newDeckName.value = '';
     showCreateForm.value = false;
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'An error occurred';
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
+ * Start editing a deck name
+ */
+function startEditingDeck(deck: Deck): void {
+  editingDeckId.value = deck.id;
+  editingDeckName.value = deck.name;
+}
+
+/**
+ * Cancel editing deck name
+ */
+function cancelEditingDeck(): void {
+  editingDeckId.value = null;
+  editingDeckName.value = '';
+}
+
+/**
+ * Update deck name
+ */
+async function updateDeck(deckId: number): Promise<void> {
+  if (!editingDeckName.value.trim()) {
+    error.value = 'Deck name is required';
+    return;
+  }
+
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await fetch(`/api/decks/${deckId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name: editingDeckName.value.trim() })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update deck');
+    }
+
+    const updatedDeck = await response.json();
+    const index = decks.value.findIndex(d => d.id === deckId);
+    if (index !== -1) {
+      decks.value[index] = { ...decks.value[index], name: updatedDeck.name };
+    }
+    editingDeckId.value = null;
+    editingDeckName.value = '';
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'An error occurred';
   } finally {
@@ -163,22 +220,50 @@ onMounted(() => {
           :key="deck.id"
           class="deck-card"
         >
-          <div class="deck-info">
-            <h3>{{ deck.name }}</h3>
-            <p class="card-count">{{ deck.cardCount || 0 }} cards</p>
+          <div v-if="editingDeckId === deck.id" class="deck-edit-form">
+            <input
+              v-model="editingDeckName"
+              type="text"
+              placeholder="Enter deck name..."
+              @keyup.enter="updateDeck(deck.id)"
+              @keyup.escape="cancelEditingDeck"
+              class="deck-name-input"
+            />
+            <div class="edit-buttons">
+              <button @click="updateDeck(deck.id)" :disabled="loading" class="save-button">
+                Save
+              </button>
+              <button @click="cancelEditingDeck" class="cancel-button">
+                Cancel
+              </button>
+            </div>
           </div>
-          <div class="deck-actions">
-            <button @click="browseDeck(deck.id)" class="browse-button">
-              Manage Cards
-            </button>
-            <button
-              @click="deleteDeck(deck.id)"
-              :disabled="loading"
-              class="delete-button"
-            >
-              Delete
-            </button>
-          </div>
+
+          <template v-else>
+            <div class="deck-info">
+              <h3>{{ deck.name }}</h3>
+              <p class="card-count">{{ deck.cardCount || 0 }} cards</p>
+            </div>
+            <div class="deck-actions">
+              <button @click="browseDeck(deck.id)" class="browse-button">
+                Manage Cards
+              </button>
+              <button
+                @click="startEditingDeck(deck)"
+                :disabled="loading"
+                class="rename-button"
+              >
+                Rename
+              </button>
+              <button
+                @click="deleteDeck(deck.id)"
+                :disabled="loading"
+                class="delete-button"
+              >
+                Delete
+              </button>
+            </div>
+          </template>
         </div>
       </div>
     </main>
@@ -358,6 +443,63 @@ onMounted(() => {
   }
 }
 
+.deck-edit-form {
+  width: 100%;
+
+  .deck-name-input {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+
+    &:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+  }
+
+  .edit-buttons {
+    display: flex;
+    gap: 0.75rem;
+
+    .save-button,
+    .cancel-button {
+      flex: 1;
+      padding: 0.75rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    .save-button {
+      background-color: #27ae60;
+      color: white;
+
+      &:hover:not(:disabled) {
+        background-color: #229954;
+      }
+
+      &:disabled {
+        background-color: #95a5a6;
+        cursor: not-allowed;
+      }
+    }
+
+    .cancel-button {
+      background-color: #ecf0f1;
+      color: #2c3e50;
+
+      &:hover {
+        background-color: #d5dbdb;
+      }
+    }
+  }
+}
+
 .deck-actions {
   display: flex;
   gap: 0.75rem;
@@ -375,6 +517,26 @@ onMounted(() => {
 
   &:hover {
     background-color: #2980b9;
+  }
+}
+
+.rename-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #7f8c8d;
+  }
+
+  &:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
   }
 }
 

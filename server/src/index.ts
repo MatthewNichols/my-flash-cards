@@ -227,6 +227,48 @@ app.delete('/api/cards/:cardId', async (c) => {
 });
 
 /**
+ * PUT /api/decks/:deckId
+ * Update a deck's name
+ */
+app.put('/api/decks/:deckId', async (c) => {
+  const deckId = parseInt(c.req.param('deckId'));
+
+  if (isNaN(deckId)) {
+    return c.json({ error: 'Invalid deck ID' }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  try {
+    const body = await c.req.json();
+    const { name } = body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return c.json({ error: 'Deck name is required' }, 400);
+    }
+
+    const result = await db.update(decks)
+      .set({
+        name: name.trim()
+      })
+      .where(eq(decks.id, deckId))
+      .returning({
+        id: decks.id,
+        name: decks.name
+      });
+
+    if (result.length === 0) {
+      return c.json({ error: 'Deck not found' }, 404);
+    }
+
+    return c.json(result[0]);
+  } catch (error) {
+    console.error('Error updating deck:', error);
+    return c.json({ error: 'Failed to update deck' }, 500);
+  }
+});
+
+/**
  * DELETE /api/decks/:deckId
  * Delete a deck and all its cards
  */
