@@ -1,0 +1,13 @@
+name = "flash-cards-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "flash-cards-db"
+database_id = "local-db-id"
+
+[env.production]
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "flash-cards-db"

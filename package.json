@@ -1,0 +1,29 @@
+{
+  "name": "my-flash-cards",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:backend": "cd server && npm run dev",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:e2e": "cypress open",
+    "db:setup": "cd server && npm run db:migrate && npm run db:seed"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "pinia": "^2.3.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0",
+    "sass": "^1.83.4",
+    "vitest": "^3.0.7",
+    "cypress": "^13.17.0"
+  }
+}
