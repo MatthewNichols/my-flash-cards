@@ -10,6 +10,7 @@ const sessionStore = useSessionStore();
 const decks = ref<Deck[]>([]);
 const selectedDeckId = ref<number | null>(null);
 const selectedDirection = ref<CardDirection>('spanish-to-english');
+const quizSize = ref<number | null>(null);
 const loading = ref<boolean>(false);
 const error = ref<string>('');
 
@@ -47,11 +48,16 @@ async function startPractice(): Promise<void> {
     if (!response.ok) {
       throw new Error('Failed to fetch cards');
     }
-    const cards: Card[] = await response.json();
+    let cards: Card[] = await response.json();
 
     if (cards.length === 0) {
       error.value = 'This deck has no cards';
       return;
+    }
+
+    // If quiz size is selected, randomly select that many cards
+    if (quizSize.value && quizSize.value < cards.length) {
+      cards = shuffleArray(cards).slice(0, quizSize.value);
     }
 
     sessionStore.startSession(cards, selectedDirection.value);
@@ -77,11 +83,16 @@ async function startReview(): Promise<void> {
     if (!response.ok) {
       throw new Error('Failed to fetch due cards');
     }
-    const cards: Card[] = await response.json();
+    let cards: Card[] = await response.json();
 
     if (cards.length === 0) {
       error.value = 'No cards are due for review yet! Great job keeping up!';
       return;
+    }
+
+    // If quiz size is selected, randomly select that many cards
+    if (quizSize.value && quizSize.value < cards.length) {
+      cards = shuffleArray(cards).slice(0, quizSize.value);
     }
 
     sessionStore.startSession(cards, selectedDirection.value);
@@ -91,6 +102,18 @@ async function startReview(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+
+/**
+ * Fisher-Yates shuffle algorithm to randomize array
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 onMounted(() => {
@@ -160,20 +183,56 @@ onMounted(() => {
             </label>
           </div>
 
+          <h3>Quick Quiz (Optional)</h3>
+          <div class="quiz-size-options">
+            <label class="quiz-option">
+              <input
+                type="radio"
+                v-model="quizSize"
+                :value="null"
+              />
+              <span>All Cards</span>
+            </label>
+            <label class="quiz-option">
+              <input
+                type="radio"
+                v-model="quizSize"
+                :value="1"
+              />
+              <span>1 Card</span>
+            </label>
+            <label class="quiz-option">
+              <input
+                type="radio"
+                v-model="quizSize"
+                :value="3"
+              />
+              <span>3 Cards</span>
+            </label>
+            <label class="quiz-option">
+              <input
+                type="radio"
+                v-model="quizSize"
+                :value="5"
+              />
+              <span>5 Cards</span>
+            </label>
+          </div>
+
           <div class="practice-buttons">
             <button
               class="start-button review"
               @click="startReview"
               :disabled="loading"
             >
-              Review Due Cards
+              {{ quizSize ? `Quick Review (${quizSize})` : 'Review Due Cards' }}
             </button>
             <button
               class="start-button practice"
               @click="startPractice"
               :disabled="loading"
             >
-              Practice All Cards
+              {{ quizSize ? `Quick Practice (${quizSize})` : 'Practice All Cards' }}
             </button>
           </div>
         </div>
@@ -353,6 +412,35 @@ onMounted(() => {
   }
 }
 
+.quiz-size-options {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #e9ecef;
+  }
+
+  input[type="radio"] {
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
+  }
+}
+
 .practice-buttons {
   display: flex;
   gap: 1rem;
@@ -422,6 +510,10 @@ onMounted(() => {
 
   .direction-selection {
     padding: 1.5rem;
+  }
+
+  .quiz-size-options {
+    flex-direction: column;
   }
 
   .practice-buttons {
