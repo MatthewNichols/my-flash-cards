@@ -68,7 +68,7 @@
 
 ## Project Phases
 
-### Phase 1: Core Flashcard Practice MVP
+### Phase 1: Core Flashcard Practice MVP ✅
 **Goal:** Working end-to-end flashcard practice experience
 
 **Core User Flow:**
@@ -108,7 +108,7 @@
 - Can see session results
 - Works on mobile, tablet, and desktop viewports
 
-### Phase 2: Card and Deck Management
+### Phase 2: Card and Deck Management ✅
 **Goal:** Enable creating and managing flashcards and decks through the UI
 
 **Core User Flow:**
@@ -151,7 +151,7 @@
 - Form validation prevents empty cards
 - All CRUD operations persist to database
 
-### Phase 3: Progress Tracking and Spaced Repetition
+### Phase 3: Progress Tracking and Spaced Repetition ✅
 **Goal:** Track learning progress over time and implement intelligent card scheduling
 
 **Core User Flow:**
@@ -179,16 +179,24 @@
 - Random direction mode (Phase 4)
 
 ### Phase 4: Polish and Advanced Features
-**Goal:** Add authentication, images, and additional practice modes
+**Goal:** Add authentication and additional practice modes
 
 **What's Included:**
-- Authentication via Cloudflare Access
-- Basic User Profile page (name, email, preferences - foundation for future features)
-- Image support (R2 storage for card images)
-- Quick quiz mode (1-5 card rapid practice)
-- Random direction mode (system chooses Spanish→English or English→Spanish per card)
-- Card tags/categories for filtering
+- ✅ Quick quiz mode (1-5 card rapid practice)
+- ✅ Random direction mode (system chooses Spanish→English or English→Spanish per card)
+- ✅ Card tags/categories for filtering
 - Export/import deck functionality
+- Authentication via Cloudflare Access (deferred)
+- Basic User Profile page (name, email, preferences - foundation for future features) (deferred)
+
+## Backlog
+Features planned for future development:
+
+### Image Support
+- R2 storage for card images
+- Upload images during card creation/editing
+- Display images on cards during practice
+- Image management (delete, replace)
 
 ## Common Tasks
 - How to add a new flash card deck & cards

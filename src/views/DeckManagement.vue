@@ -12,6 +12,8 @@ const showCreateForm = ref<boolean>(false);
 const newDeckName = ref<string>('');
 const editingDeckId = ref<number | null>(null);
 const editingDeckName = ref<string>('');
+const showImportForm = ref<boolean>(false);
+const importFileInput = ref<HTMLInputElement | null>(null);
 
 /**
  * Fetch all decks
@@ -159,6 +161,98 @@ function browseDeck(deckId: number): void {
   router.push({ name: 'CardBrowser', params: { deckId } });
 }
 
+/**
+ * Export a deck to JSON file
+ */
+async function exportDeck(deckId: number, deckName: string): Promise<void> {
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await fetch(`/api/decks/${deckId}/export`);
+    if (!response.ok) {
+      throw new Error('Failed to export deck');
+    }
+
+    const exportData = await response.json();
+
+    // Create and download the file
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${deckName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'An error occurred';
+  } finally {
+    loading.value = false;
+  }
+}
+
+/**
+ * Handle file selection for import
+ */
+function handleImportFile(event: Event): void {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const content = e.target?.result as string;
+      const importData = JSON.parse(content);
+
+      await importDeck(importData);
+
+      // Reset file input
+      if (importFileInput.value) {
+        importFileInput.value.value = '';
+      }
+      showImportForm.value = false;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Invalid import file format';
+    }
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Import a deck from JSON data
+ */
+async function importDeck(importData: any): Promise<void> {
+  loading.value = true;
+  error.value = '';
+
+  try {
+    const response = await fetch('/api/decks/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(importData)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to import deck');
+    }
+
+    const result = await response.json();
+
+    // Refresh deck list to show the imported deck
+    await fetchDecks();
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'An error occurred during import';
+  } finally {
+    loading.value = false;
+  }
+}
+
 onMounted(() => {
   fetchDecks();
 });
@@ -182,13 +276,23 @@ onMounted(() => {
       <div v-if="error" class="error">{{ error }}</div>
 
       <div class="actions">
-        <button
-          v-if="!showCreateForm"
-          @click="showCreateForm = true"
-          class="create-button"
-        >
-          + Create New Deck
-        </button>
+        <div class="action-buttons">
+          <button
+            v-if="!showCreateForm && !showImportForm"
+            @click="showCreateForm = true"
+            class="create-button"
+          >
+            + Create New Deck
+          </button>
+
+          <button
+            v-if="!showCreateForm && !showImportForm"
+            @click="showImportForm = true"
+            class="import-button"
+          >
+            Import Deck
+          </button>
+        </div>
 
         <div v-if="showCreateForm" class="create-form">
           <input
@@ -210,6 +314,23 @@ onMounted(() => {
               Cancel
             </button>
           </div>
+        </div>
+
+        <div v-if="showImportForm" class="import-form">
+          <p class="import-description">Select a deck JSON file to import:</p>
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json"
+            @change="handleImportFile"
+            class="file-input"
+          />
+          <button
+            @click="showImportForm = false"
+            class="cancel-button"
+          >
+            Cancel
+          </button>
         </div>
       </div>
 
@@ -252,6 +373,13 @@ onMounted(() => {
             <div class="deck-actions">
               <button @click="browseDeck(deck.id)" class="browse-button">
                 Manage Cards
+              </button>
+              <button
+                @click="exportDeck(deck.id, deck.name)"
+                :disabled="loading"
+                class="export-button"
+              >
+                Export
               </button>
               <button
                 @click="startEditingDeck(deck)"
@@ -337,9 +465,15 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 
-.create-button {
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.create-button,
+.import-button {
   padding: 1rem 2rem;
-  background-color: #27ae60;
   color: white;
   border: none;
   border-radius: 8px;
@@ -347,17 +481,56 @@ onMounted(() => {
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s ease;
+}
+
+.create-button {
+  background-color: #27ae60;
 
   &:hover {
     background-color: #229954;
   }
 }
 
-.create-form {
+.import-button {
+  background-color: #9b59b6;
+
+  &:hover {
+    background-color: #8e44ad;
+  }
+}
+
+.create-form,
+.import-form {
   background-color: white;
   padding: 1.5rem;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.import-form {
+  .import-description {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    font-size: 1rem;
+  }
+
+  .file-input {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    border: 2px dashed #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+  }
+
+  .cancel-button {
+    width: 100%;
+  }
 }
 
 .deck-name-input {
@@ -528,6 +701,26 @@ onMounted(() => {
 
   &:hover {
     background-color: #2980b9;
+  }
+}
+
+.export-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #16a085;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #138d75;
+  }
+
+  &:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
   }
 }
 

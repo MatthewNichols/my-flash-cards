@@ -495,4 +495,111 @@ app.get('/api/decks/:deckId/stats', async (c) => {
   }
 });
 
+/**
+ * GET /api/decks/:deckId/export
+ * Export a deck with all its cards as JSON
+ */
+app.get('/api/decks/:deckId/export', async (c) => {
+  const deckId = parseInt(c.req.param('deckId'));
+
+  if (isNaN(deckId)) {
+    return c.json({ error: 'Invalid deck ID' }, 400);
+  }
+
+  const db = drizzle(c.env.DB);
+
+  try {
+    // Get deck info
+    const deckResult = await db.select({
+      id: decks.id,
+      name: decks.name
+    })
+    .from(decks)
+    .where(eq(decks.id, deckId))
+    .limit(1);
+
+    if (deckResult.length === 0) {
+      return c.json({ error: 'Deck not found' }, 404);
+    }
+
+    // Get all cards in the deck
+    const deckCards = await db.select({
+      frontText: cards.frontText,
+      backText: cards.backText,
+      tags: cards.tags
+    })
+    .from(cards)
+    .where(eq(cards.deckId, deckId));
+
+    const exportData = {
+      version: '1.0',
+      deck: {
+        name: deckResult[0].name,
+        cards: deckCards.map(card => ({
+          frontText: card.frontText,
+          backText: card.backText,
+          tags: card.tags || ''
+        }))
+      },
+      exportedAt: new Date().toISOString()
+    };
+
+    return c.json(exportData);
+  } catch (error) {
+    console.error('Error exporting deck:', error);
+    return c.json({ error: 'Failed to export deck' }, 500);
+  }
+});
+
+/**
+ * POST /api/decks/import
+ * Import a deck from JSON data
+ */
+app.post('/api/decks/import', async (c) => {
+  const db = drizzle(c.env.DB);
+
+  try {
+    const body = await c.req.json();
+    const { deck } = body;
+
+    if (!deck || !deck.name || !Array.isArray(deck.cards)) {
+      return c.json({ error: 'Invalid import format' }, 400);
+    }
+
+    // Create the deck
+    const deckResult = await db.insert(decks).values({
+      name: deck.name.trim()
+    }).returning({
+      id: decks.id,
+      name: decks.name
+    });
+
+    const newDeckId = deckResult[0].id;
+
+    // Import all cards
+    if (deck.cards.length > 0) {
+      const cardValues = deck.cards.map((card: any) => ({
+        frontText: card.frontText.trim(),
+        backText: card.backText.trim(),
+        deckId: newDeckId,
+        tags: card.tags ? card.tags.trim() : ''
+      }));
+
+      await db.insert(cards).values(cardValues);
+    }
+
+    return c.json({
+      success: true,
+      deck: {
+        id: newDeckId,
+        name: deckResult[0].name,
+        cardCount: deck.cards.length
+      }
+    }, 201);
+  } catch (error) {
+    console.error('Error importing deck:', error);
+    return c.json({ error: 'Failed to import deck' }, 500);
+  }
+});
+
 export default app;
