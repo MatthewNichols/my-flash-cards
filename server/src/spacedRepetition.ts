@@ -9,7 +9,7 @@ export interface ScheduleData {
   intervalDays: number;
   easeFactor: number;
   repetitions: number;
-  nextReviewDate: string;
+  nextReviewDate: Date;
 }
 
 /**
@@ -58,9 +58,8 @@ export function calculateNextReview(
   }
 
   // Calculate next review date
-  const nextDate = new Date();
-  nextDate.setDate(nextDate.getDate() + newInterval);
-  const nextReviewDate = nextDate.toISOString();
+  const nextReviewDate = new Date();
+  nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
 
   return {
     intervalDays: newInterval,
@@ -73,13 +72,12 @@ export function calculateNextReview(
 /**
  * Check if a card is due for review
  *
- * @param nextReviewDate - ISO date string of next scheduled review
+ * @param nextReviewDate - Next scheduled review date
  * @returns true if the card is due for review
  */
-export function isCardDue(nextReviewDate: string): boolean {
-  const reviewDate = new Date(nextReviewDate);
+export function isCardDue(nextReviewDate: Date): boolean {
   const now = new Date();
-  return reviewDate <= now;
+  return nextReviewDate <= now;
 }
 
 /**
@@ -92,6 +90,6 @@ export function initializeSchedule(): ScheduleData {
     intervalDays: 1,
     easeFactor: 2.5,
     repetitions: 0,
-    nextReviewDate: new Date().toISOString()
+    nextReviewDate: new Date()
   };
 }
