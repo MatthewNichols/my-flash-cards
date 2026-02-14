@@ -3,14 +3,31 @@
 ## Prerequisites
 - Node.js (v18 or higher)
 - npm
+- PostgreSQL (for native dev) or Docker (for containerized deployment)
 
-## Initial Setup
+## Option A: Docker Deployment (Recommended for production)
+
+### 1. Configure Environment
+
+Copy the example env file and adjust if needed:
+```bash
+cp .env.example .env
+```
+
+### 2. Start Everything
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL and the app. The database schema is automatically created on first run.
+
+The app will be available at `http://localhost:3001`
+
+## Option B: Native Development
 
 ### 1. Install Dependencies
 
-Frontend dependencies are already installed. Backend dependencies are already installed.
-
-If you need to reinstall:
 ```bash
 # Frontend
 npm install
@@ -21,38 +38,44 @@ npm install
 cd ..
 ```
 
-### 2. Set Up Database
+### 2. Set Up PostgreSQL
 
-Create and seed the local D1 database:
+Make sure PostgreSQL is running locally. Create a database:
+
+```bash
+createdb flashcards
+```
+
+### 3. Configure Environment
 
 ```bash
 cd server
+cp .env.example .env
+# Edit .env if your PostgreSQL connection differs from the defaults
+```
 
-# Create local D1 database
-npx wrangler d1 create flash-cards-db --local
+### 4. Run Migrations and Seed
 
-# Run migrations to create tables
+```bash
+cd server
 npm run db:migrate
-
-# Seed the database with Spanish vocabulary
 npm run db:seed
-
 cd ..
 ```
 
-## Running the Application
+### 5. Run the Application
 
 You need to run both the frontend and backend servers simultaneously.
 
-### Terminal 1: Start Backend (Cloudflare Workers)
+**Terminal 1: Start Backend (Node.js)**
 ```bash
 cd server
 npm run dev
 ```
 
-The API will be available at `http://localhost:8787`
+The API will be available at `http://localhost:3001`
 
-### Terminal 2: Start Frontend (Vite)
+**Terminal 2: Start Frontend (Vite)**
 ```bash
 npm run dev
 ```
@@ -61,16 +84,17 @@ The frontend will be available at `http://localhost:3000`
 
 ## Using the Application
 
-1. Open your browser to `http://localhost:3000`
-2. You should see the "Spanish Basics" deck
-3. Click on the deck to select it
-4. Choose your practice direction:
-   - Spanish → English (see Spanish word, reveal English translation)
-   - English → Spanish (see English word, reveal Spanish translation)
-5. Click "Start Practice"
-6. Click on the card to flip and reveal the answer
-7. Self-assess by clicking "Got It" or "Missed It"
-8. Complete the session to see your results
+1. Open your browser to `http://localhost:3000` (dev) or `http://localhost:3001` (Docker)
+2. Register an account or log in
+3. Create a deck or use the seeded "Spanish Basics" deck
+4. Click on a deck to select it
+5. Choose your practice direction:
+   - Spanish -> English (see Spanish word, reveal English translation)
+   - English -> Spanish (see English word, reveal Spanish translation)
+6. Click "Start Practice"
+7. Click on the card to flip and reveal the answer
+8. Self-assess by clicking "Got It" or "Missed It"
+9. Complete the session to see your results
 
 ## Project Structure
 
@@ -79,52 +103,53 @@ my-flash-cards/
 ├── src/                    # Frontend source code
 │   ├── components/        # Reusable Vue components
 │   ├── views/            # Page-level components
-│   │   ├── DeckList.vue
-│   │   ├── PracticeSession.vue
-│   │   └── SessionResults.vue
 │   ├── store/            # Pinia stores
-│   │   └── session.ts
 │   ├── router/           # Vue Router setup
 │   ├── styles/           # Global styles
 │   ├── types/            # TypeScript types
 │   └── main.ts           # App entry point
 ├── server/               # Backend source code
 │   ├── src/
-│   │   ├── index.ts      # Hono API worker
-│   │   ├── schema.ts     # Drizzle ORM schema
+│   │   ├── index.ts      # Hono API server
+│   │   ├── schema.ts     # Drizzle ORM schema (PostgreSQL)
+│   │   ├── db.ts         # Database connection
+│   │   ├── auth.ts       # Authentication utilities
+│   │   ├── spacedRepetition.ts  # SM-2 algorithm
 │   │   └── types.ts      # TypeScript types
 │   └── migrations/       # Database migrations
-│       ├── schema.sql    # Database schema
+│       ├── 001_initial_schema.sql  # Full schema
 │       └── seed.sql      # Seed data
+├── Dockerfile            # Multi-stage Docker build
+├── docker-compose.yml    # PostgreSQL + app services
 └── package.json          # Frontend dependencies
 ```
 
 ## API Endpoints
 
-- `GET /api/decks` - Get all available decks
-- `GET /api/decks/:deckId/cards` - Get all cards for a specific deck
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login
+- `POST /api/auth/logout` - Logout
+- `GET /api/auth/me` - Get current user
+- `GET /api/decks` - Get all decks for current user
+- `POST /api/decks` - Create a new deck
+- `PUT /api/decks/:deckId` - Update a deck
+- `DELETE /api/decks/:deckId` - Delete a deck
+- `GET /api/decks/:deckId/cards` - Get all cards in a deck
+- `POST /api/decks/:deckId/cards` - Create a card
+- `PUT /api/cards/:cardId` - Update a card
+- `DELETE /api/cards/:cardId` - Delete a card
+- `POST /api/attempts` - Record a practice attempt
+- `GET /api/decks/:deckId/due-cards` - Get cards due for review
+- `GET /api/decks/:deckId/stats` - Get deck statistics
+- `GET /api/decks/:deckId/export` - Export a deck as JSON
+- `POST /api/decks/import` - Import a deck from JSON
 
 ## Troubleshooting
 
-### Database not created
-If you see errors about the database not existing, make sure you ran:
-```bash
-cd server
-npx wrangler d1 create flash-cards-db --local
-npm run db:migrate
-npm run db:seed
-```
+### Database connection errors
+Make sure PostgreSQL is running and the `DATABASE_URL` in your `.env` file is correct.
 
 ### Port already in use
-If port 3000 or 8787 is already in use, you can change them:
+If port 3000 or 3001 is already in use:
 - Frontend: Edit `vite.config.ts` and change the `server.port` value
-- Backend: Wrangler will prompt you to use a different port
-
-### CORS errors
-The backend is configured with CORS enabled for local development. If you see CORS errors, verify both servers are running.
-
-## Next Steps (Future Phases)
-
-- Phase 2: Card creation UI, authentication, progress tracking
-- Phase 3: Spaced repetition algorithm, multiple decks
-- Phase 4: Images on cards, quick quiz mode, random direction mode
+- Backend: Set the `PORT` env variable in `server/.env`

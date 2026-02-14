@@ -1,24 +1,29 @@
+import 'dotenv/config';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
-import { drizzle } from 'drizzle-orm/d1';
-import { eq, sql, lte, and } from 'drizzle-orm';
-import { decks, cards, cardAttempts, cardSchedule, users, sessions } from './schema';
-import type { Env, DeckResponse, CardResponse } from './types';
-import { calculateNextReview, initializeSchedule, isCardDue } from './spacedRepetition';
-import { hashPassword, verifyPassword, generateSessionId, getSessionExpiration } from './auth';
+import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
+import { eq, sql, and } from 'drizzle-orm';
+import { db } from './db.js';
+import { decks, cards, cardAttempts, cardSchedule, users, sessions } from './schema.js';
+import type { DeckResponse, CardResponse } from './types.js';
+import { calculateNextReview, initializeSchedule, isCardDue } from './spacedRepetition.js';
+import { hashPassword, verifyPassword, generateSessionId, getSessionExpiration } from './auth.js';
 
 type Variables = {
   userId?: number;
 };
 
-const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+const app = new Hono<{ Variables: Variables }>();
 
 /**
  * Enable CORS for local development with credentials support
  */
 app.use('/*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:8787'],
+  origin: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
 
@@ -29,8 +34,7 @@ async function authMiddleware(c: any, next: any) {
   const sessionId = getCookie(c, 'session_id');
 
   if (sessionId) {
-    const db = drizzle(c.env.DB);
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const sessionResult = await db.select({
       userId: sessions.userId,
@@ -55,8 +59,6 @@ app.use('/*', authMiddleware);
  * Register a new user account
  */
 app.post('/api/auth/register', async (c) => {
-  const db = drizzle(c.env.DB);
-
   try {
     const body = await c.req.json();
     const { email, password, name } = body;
@@ -130,8 +132,6 @@ app.post('/api/auth/register', async (c) => {
  * Login with email and password
  */
 app.post('/api/auth/login', async (c) => {
-  const db = drizzle(c.env.DB);
-
   try {
     const body = await c.req.json();
     const { email, password } = body;
@@ -198,8 +198,6 @@ app.post('/api/auth/logout', async (c) => {
   const sessionId = getCookie(c, 'session_id');
 
   if (sessionId) {
-    const db = drizzle(c.env.DB);
-
     try {
       await db.delete(sessions).where(eq(sessions.id, sessionId));
     } catch (error) {
@@ -222,8 +220,6 @@ app.get('/api/auth/me', async (c) => {
   if (!userId) {
     return c.json({ error: 'Not authenticated' }, 401);
   }
-
-  const db = drizzle(c.env.DB);
 
   try {
     const userResult = await db.select({
@@ -252,7 +248,6 @@ app.get('/api/auth/me', async (c) => {
  */
 app.get('/api/decks', async (c) => {
   const userId = c.get('userId');
-  const db = drizzle(c.env.DB);
 
   try {
     // Get all decks for user (or all decks if no user - backward compatibility)
@@ -298,8 +293,6 @@ app.get('/api/decks/:deckId/cards', async (c) => {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
     const deckCards = await db.select({
       id: cards.id,
@@ -332,7 +325,6 @@ app.get('/api/decks/:deckId/cards', async (c) => {
  */
 app.post('/api/decks', async (c) => {
   const userId = c.get('userId');
-  const db = drizzle(c.env.DB);
 
   try {
     const body = await c.req.json();
@@ -367,8 +359,6 @@ app.post('/api/decks/:deckId/cards', async (c) => {
   if (isNaN(deckId)) {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
-
-  const db = drizzle(c.env.DB);
 
   try {
     const body = await c.req.json();
@@ -412,8 +402,6 @@ app.put('/api/cards/:cardId', async (c) => {
   if (isNaN(cardId)) {
     return c.json({ error: 'Invalid card ID' }, 400);
   }
-
-  const db = drizzle(c.env.DB);
 
   try {
     const body = await c.req.json();
@@ -464,8 +452,6 @@ app.delete('/api/cards/:cardId', async (c) => {
     return c.json({ error: 'Invalid card ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
     const result = await db.delete(cards)
       .where(eq(cards.id, cardId))
@@ -492,8 +478,6 @@ app.put('/api/decks/:deckId', async (c) => {
   if (isNaN(deckId)) {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
-
-  const db = drizzle(c.env.DB);
 
   try {
     const body = await c.req.json();
@@ -535,8 +519,6 @@ app.delete('/api/decks/:deckId', async (c) => {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
     const result = await db.delete(decks)
       .where(eq(decks.id, deckId))
@@ -558,8 +540,6 @@ app.delete('/api/decks/:deckId', async (c) => {
  * Record a card attempt and update schedule
  */
 app.post('/api/attempts', async (c) => {
-  const db = drizzle(c.env.DB);
-
   try {
     const body = await c.req.json();
     const { cardId, correct } = body;
@@ -599,7 +579,7 @@ app.post('/api/attempts', async (c) => {
       await db.update(cardSchedule)
         .set({
           ...newSchedule,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date()
         })
         .where(eq(cardSchedule.cardId, cardId));
     } else {
@@ -627,10 +607,8 @@ app.get('/api/decks/:deckId/due-cards', async (c) => {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
 
     // Get all cards in the deck with their schedule info
     const deckCards = await db.select({
@@ -678,10 +656,8 @@ app.get('/api/decks/:deckId/stats', async (c) => {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
-    const now = new Date().toISOString();
+    const now = new Date();
 
     // Get total cards in deck
     const totalCardsResult = await db.select({
@@ -744,8 +720,6 @@ app.get('/api/decks/:deckId/export', async (c) => {
     return c.json({ error: 'Invalid deck ID' }, 400);
   }
 
-  const db = drizzle(c.env.DB);
-
   try {
     // Get deck info
     const deckResult = await db.select({
@@ -795,7 +769,6 @@ app.get('/api/decks/:deckId/export', async (c) => {
  */
 app.post('/api/decks/import', async (c) => {
   const userId = c.get('userId');
-  const db = drizzle(c.env.DB);
 
   try {
     const body = await c.req.json();
@@ -840,6 +813,20 @@ app.post('/api/decks/import', async (c) => {
     console.error('Error importing deck:', error);
     return c.json({ error: 'Failed to import deck' }, 500);
   }
+});
+
+// Serve frontend static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use('/*', serveStatic({ root: './public' }));
+}
+
+const port = parseInt(process.env.PORT || '3001');
+
+serve({
+  fetch: app.fetch,
+  port,
+}, (info) => {
+  console.log(`Server running on http://localhost:${info.port}`);
 });
 
 export default app;
