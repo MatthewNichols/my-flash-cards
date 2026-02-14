@@ -97,8 +97,8 @@ export function generateSessionId(): string {
 /**
  * Calculate session expiration date (30 days from now)
  */
-export function getSessionExpiration(): string {
+export function getSessionExpiration(): Date {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
-  return expiresAt.toISOString();
+  return expiresAt;
 }

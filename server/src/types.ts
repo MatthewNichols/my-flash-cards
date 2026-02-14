@@ -1,11 +1,4 @@
 /**
- * Cloudflare Workers environment bindings
- */
-export interface Env {
-  DB: D1Database;
-}
-
-/**
  * API response types
  */
 export interface DeckResponse {
