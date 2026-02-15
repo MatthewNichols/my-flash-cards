@@ -8,6 +8,8 @@ import CardBrowser from '@/views/CardBrowser.vue';
 import Progress from '@/views/Progress.vue';
 import Login from '@/views/Login.vue';
 import Register from '@/views/Register.vue';
+import MyProfile from '@/views/MyProfile.vue';
+import UserManagement from '@/views/UserManagement.vue';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -52,6 +54,18 @@ const routes: RouteRecordRaw[] = [
     path: '/progress',
     name: 'Progress',
     component: Progress
+  },
+  {
+    path: '/profile',
+    name: 'MyProfile',
+    component: MyProfile,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManagement',
+    component: UserManagement,
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ];
 
@@ -73,6 +87,18 @@ router.beforeEach(async (to, from, next) => {
 
   // Redirect authenticated users away from login/register pages
   if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    next({ name: 'DeckList' });
+    return;
+  }
+
+  // Redirect unauthenticated users away from auth-required pages
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next({ name: 'Login' });
+    return;
+  }
+
+  // Redirect non-admin users away from admin-required pages
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next({ name: 'DeckList' });
     return;
   }

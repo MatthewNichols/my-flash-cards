@@ -13,8 +13,13 @@ export const db = drizzle(pool);
 export async function runMigrations() {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const migrationsDir = path.join(__dirname, '..', 'migrations');
-  const schemaPath = path.join(migrationsDir, '001_initial_schema.sql');
-  const sql = fs.readFileSync(schemaPath, 'utf-8');
-  await pool.query(sql);
+  const files = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql') && !f.startsWith('seed'))
+    .sort();
+
+  for (const file of files) {
+    const sqlContent = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+    await pool.query(sqlContent);
+  }
   console.log('Database migrations applied successfully');
 }

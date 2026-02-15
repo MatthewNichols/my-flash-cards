@@ -39,3 +39,19 @@ export interface SessionStats {
   correctCount: number;
   missedCount: number;
 }
+
+/**
+ * User roles
+ */
+export type UserRole = 'admin' | 'user';
+
+/**
+ * Represents a user in the admin management context
+ */
+export interface ManagedUser {
+  id: number;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  createdAt: string;
+}
