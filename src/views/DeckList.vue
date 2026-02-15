@@ -16,6 +16,7 @@ const quizSize = ref<number | null>(null);
 const selectedTags = ref<string>('');
 const loading = ref<boolean>(false);
 const error = ref<string>('');
+const menuOpen = ref<boolean>(false);
 
 /**
  * Fetch available decks from API
@@ -157,10 +158,17 @@ onMounted(() => {
 <template>
   <div class="deck-list-container">
     <header class="header">
-      <h1>My Flash Cards</h1>
-      <div class="header-buttons">
+      <div class="header-top">
+        <h1>My Flash Cards</h1>
+        <button class="hamburger" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+      </div>
+      <span v-if="authStore.isAuthenticated" class="user-email">{{ authStore.user?.email }}</span>
+      <div class="header-buttons" :class="{ open: menuOpen }">
         <template v-if="authStore.isAuthenticated">
-          <span class="user-email">{{ authStore.user?.email }}</span>
           <button @click="router.push({ name: 'Progress' })" class="progress-button">
             Progress
           </button>
@@ -328,9 +336,33 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
 
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   h1 {
     font-size: 2rem;
     font-weight: 600;
+  }
+
+  .hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+
+    .hamburger-line {
+      display: block;
+      width: 24px;
+      height: 3px;
+      background-color: white;
+      border-radius: 2px;
+    }
   }
 
   .header-buttons {
@@ -632,22 +664,50 @@ onMounted(() => {
 @media (max-width: 600px) {
   .header {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
+    align-items: center;
+    gap: 0.5rem;
+
+    .header-top {
+      width: 100%;
+      justify-content: center;
+      position: relative;
+    }
 
     h1 {
       font-size: 1.5rem;
+      text-align: center;
+    }
+
+    .hamburger {
+      display: flex;
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .user-email {
+      text-align: center;
+      margin-right: 0;
     }
 
     .header-buttons {
+      display: none;
       width: 100%;
       flex-direction: column;
+
+      &.open {
+        display: flex;
+      }
     }
 
     .progress-button,
     .manage-button,
     .profile-button,
-    .admin-button {
+    .admin-button,
+    .logout-button,
+    .login-button-header,
+    .register-button-header {
       width: 100%;
     }
   }
