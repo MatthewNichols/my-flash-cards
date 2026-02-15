@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-flashcards}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./server/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./server/migrations/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flashcards}"]
       interval: 5s
