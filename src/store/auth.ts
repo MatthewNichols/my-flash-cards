@@ -8,6 +8,7 @@ export interface User {
   id: number;
   email: string;
   name: string | null;
+  role: 'admin' | 'user';
 }
 
 /**
@@ -23,6 +24,13 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const isAuthenticated = computed((): boolean => {
     return user.value !== null;
+  });
+
+  /**
+   * Check if user is an admin
+   */
+  const isAdmin = computed((): boolean => {
+    return user.value?.role === 'admin';
   });
 
   /**
@@ -135,14 +143,51 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Update own profile
+   */
+  async function updateProfile(data: {
+    email?: string;
+    name?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }): Promise<void> {
+    loading.value = true;
+    error.value = '';
+
+    try {
+      const response = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const responseData = await response.json();
+        throw new Error(responseData.error || 'Failed to update profile');
+      }
+
+      const responseData = await response.json();
+      user.value = responseData.user;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'An error occurred';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   return {
     user,
     loading,
     error,
     isAuthenticated,
+    isAdmin,
     register,
     login,
     logout,
-    checkAuth
+    checkAuth,
+    updateProfile
   };
 });

@@ -13,6 +13,7 @@ import { hashPassword, verifyPassword, generateSessionId, getSessionExpiration }
 
 type Variables = {
   userId?: number;
+  userRole?: string;
 };
 
 const app = new Hono<{ Variables: Variables }>();
@@ -46,6 +47,15 @@ async function authMiddleware(c: any, next: any) {
 
     if (sessionResult.length > 0 && sessionResult[0].expiresAt > now) {
       c.set('userId', sessionResult[0].userId);
+
+      const userResult = await db.select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, sessionResult[0].userId))
+        .limit(1);
+
+      if (userResult.length > 0) {
+        c.set('userRole', userResult[0].role);
+      }
     }
   }
 
@@ -53,6 +63,26 @@ async function authMiddleware(c: any, next: any) {
 }
 
 app.use('/*', authMiddleware);
+
+function requireAuth(c: any, next: any) {
+  const userId = c.get('userId');
+  if (!userId) {
+    return c.json({ error: 'Not authenticated' }, 401);
+  }
+  return next();
+}
+
+function requireAdmin(c: any, next: any) {
+  const userId = c.get('userId');
+  const userRole = c.get('userRole');
+  if (!userId) {
+    return c.json({ error: 'Not authenticated' }, 401);
+  }
+  if (userRole !== 'admin') {
+    return c.json({ error: 'Forbidden: admin access required' }, 403);
+  }
+  return next();
+}
 
 /**
  * POST /api/auth/register
@@ -90,7 +120,8 @@ app.post('/api/auth/register', async (c) => {
     }).returning({
       id: users.id,
       email: users.email,
-      name: users.name
+      name: users.name,
+      role: users.role
     });
 
     const user = userResult[0];
@@ -118,7 +149,8 @@ app.post('/api/auth/register', async (c) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     }, 201);
   } catch (error) {
@@ -181,7 +213,8 @@ app.post('/api/auth/login', async (c) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: user.role
       }
     });
   } catch (error) {
@@ -225,7 +258,8 @@ app.get('/api/auth/me', async (c) => {
     const userResult = await db.select({
       id: users.id,
       email: users.email,
-      name: users.name
+      name: users.name,
+      role: users.role
     })
     .from(users)
     .where(eq(users.id, userId))
@@ -815,6 +849,253 @@ app.post('/api/decks/import', async (c) => {
   }
 });
 
+/**
+ * PUT /api/auth/profile
+ * Update own profile (any authenticated user)
+ */
+app.put('/api/auth/profile', requireAuth, async (c) => {
+  const userId = c.get('userId');
+
+  try {
+    const body = await c.req.json();
+    const { email, name, currentPassword, newPassword } = body;
+
+    const updateData: Record<string, any> = {};
+
+    if (email !== undefined) {
+      if (typeof email !== 'string' || !email.includes('@')) {
+        return c.json({ error: 'Valid email is required' }, 400);
+      }
+      const existing = await db.select().from(users)
+        .where(and(eq(users.email, email.toLowerCase()), sql`${users.id} != ${userId}`))
+        .limit(1);
+      if (existing.length > 0) {
+        return c.json({ error: 'Email already in use' }, 409);
+      }
+      updateData.email = email.toLowerCase();
+    }
+
+    if (name !== undefined) {
+      updateData.name = name || null;
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return c.json({ error: 'Current password is required to set a new password' }, 400);
+      }
+      if (newPassword.length < 8) {
+        return c.json({ error: 'New password must be at least 8 characters' }, 400);
+      }
+      const userResult = await db.select({ passwordHash: users.passwordHash })
+        .from(users).where(eq(users.id, userId!)).limit(1);
+      if (userResult.length === 0) {
+        return c.json({ error: 'User not found' }, 404);
+      }
+      const isValid = await verifyPassword(currentPassword, userResult[0].passwordHash);
+      if (!isValid) {
+        return c.json({ error: 'Current password is incorrect' }, 400);
+      }
+      updateData.passwordHash = await hashPassword(newPassword);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return c.json({ error: 'No fields to update' }, 400);
+    }
+
+    const result = await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, userId!))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role
+      });
+
+    return c.json({ user: result[0] });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    return c.json({ error: 'Failed to update profile' }, 500);
+  }
+});
+
+/**
+ * GET /api/admin/users
+ * List all users (admin only)
+ */
+app.get('/api/admin/users', requireAdmin, async (c) => {
+  try {
+    const allUsers = await db.select({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      createdAt: users.createdAt
+    })
+    .from(users)
+    .orderBy(users.createdAt);
+
+    return c.json(allUsers);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return c.json({ error: 'Failed to fetch users' }, 500);
+  }
+});
+
+/**
+ * POST /api/admin/users
+ * Create a new user (admin only)
+ */
+app.post('/api/admin/users', requireAdmin, async (c) => {
+  try {
+    const body = await c.req.json();
+    const { email, password, name, role } = body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return c.json({ error: 'Valid email is required' }, 400);
+    }
+    if (!password || typeof password !== 'string' || password.length < 8) {
+      return c.json({ error: 'Password must be at least 8 characters' }, 400);
+    }
+    if (role && !['admin', 'user'].includes(role)) {
+      return c.json({ error: 'Role must be "admin" or "user"' }, 400);
+    }
+
+    const existing = await db.select().from(users)
+      .where(eq(users.email, email.toLowerCase())).limit(1);
+    if (existing.length > 0) {
+      return c.json({ error: 'Email already registered' }, 409);
+    }
+
+    const passwordHash = await hashPassword(password);
+    const result = await db.insert(users).values({
+      email: email.toLowerCase(),
+      passwordHash,
+      name: name || null,
+      role: role || 'user'
+    }).returning({
+      id: users.id,
+      email: users.email,
+      name: users.name,
+      role: users.role,
+      createdAt: users.createdAt
+    });
+
+    return c.json(result[0], 201);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    return c.json({ error: 'Failed to create user' }, 500);
+  }
+});
+
+/**
+ * PUT /api/admin/users/:userId
+ * Update a user (admin only)
+ */
+app.put('/api/admin/users/:userId', requireAdmin, async (c) => {
+  const targetUserId = parseInt(c.req.param('userId'));
+  if (isNaN(targetUserId)) {
+    return c.json({ error: 'Invalid user ID' }, 400);
+  }
+
+  try {
+    const body = await c.req.json();
+    const { email, password, name, role } = body;
+
+    const updateData: Record<string, any> = {};
+
+    if (email !== undefined) {
+      if (typeof email !== 'string' || !email.includes('@')) {
+        return c.json({ error: 'Valid email is required' }, 400);
+      }
+      const existing = await db.select().from(users)
+        .where(and(eq(users.email, email.toLowerCase()), sql`${users.id} != ${targetUserId}`))
+        .limit(1);
+      if (existing.length > 0) {
+        return c.json({ error: 'Email already in use' }, 409);
+      }
+      updateData.email = email.toLowerCase();
+    }
+
+    if (password !== undefined) {
+      if (typeof password !== 'string' || password.length < 8) {
+        return c.json({ error: 'Password must be at least 8 characters' }, 400);
+      }
+      updateData.passwordHash = await hashPassword(password);
+    }
+
+    if (name !== undefined) {
+      updateData.name = name || null;
+    }
+
+    if (role !== undefined) {
+      if (!['admin', 'user'].includes(role)) {
+        return c.json({ error: 'Role must be "admin" or "user"' }, 400);
+      }
+      const currentUserId = c.get('userId');
+      if (targetUserId === currentUserId && role !== 'admin') {
+        return c.json({ error: 'Cannot remove your own admin role' }, 400);
+      }
+      updateData.role = role;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return c.json({ error: 'No fields to update' }, 400);
+    }
+
+    const result = await db.update(users)
+      .set(updateData)
+      .where(eq(users.id, targetUserId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        createdAt: users.createdAt
+      });
+
+    if (result.length === 0) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    return c.json(result[0]);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    return c.json({ error: 'Failed to update user' }, 500);
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:userId
+ * Delete a user (admin only)
+ */
+app.delete('/api/admin/users/:userId', requireAdmin, async (c) => {
+  const targetUserId = parseInt(c.req.param('userId'));
+  if (isNaN(targetUserId)) {
+    return c.json({ error: 'Invalid user ID' }, 400);
+  }
+
+  const currentUserId = c.get('userId');
+  if (targetUserId === currentUserId) {
+    return c.json({ error: 'Cannot delete your own account' }, 400);
+  }
+
+  try {
+    const result = await db.delete(users)
+      .where(eq(users.id, targetUserId))
+      .returning({ id: users.id });
+
+    if (result.length === 0) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    return c.json({ success: true, id: result[0].id });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    return c.json({ error: 'Failed to delete user' }, 500);
+  }
+});
+
 // Serve frontend static files in production
 if (process.env.NODE_ENV === 'production') {
   app.use('/*', serveStatic({ root: './public' }));
@@ -822,8 +1103,53 @@ if (process.env.NODE_ENV === 'production') {
 
 const port = parseInt(process.env.PORT || '3001');
 
+/**
+ * Seed an admin user if ADMIN_EMAIL and ADMIN_PASSWORD are set in environment variables
+ * and no admin user currently exists. If a user with the admin email already exists, promote them to admin.
+ * @returns {Promise<void>} 
+ */
+async function seedAdmin() {
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.log('ADMIN_EMAIL or ADMIN_PASSWORD not set, skipping admin seed');
+    return;
+  }
+
+  const existingAdmin = await db.select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, 'admin'))
+    .limit(1);
+
+  if (existingAdmin.length > 0) {
+    return;
+  }
+
+  // Check if email already exists as a regular user and promote them
+  const existingUser = await db.select().from(users)
+    .where(eq(users.email, adminEmail.toLowerCase())).limit(1);
+
+  if (existingUser.length > 0) {
+    await db.update(users)
+      .set({ role: 'admin' })
+      .where(eq(users.id, existingUser[0].id));
+    console.log(`Existing user promoted to admin: ${adminEmail}`);
+  } else {
+    const passwordHash = await hashPassword(adminPassword);
+    await db.insert(users).values({
+      email: adminEmail.toLowerCase(),
+      passwordHash,
+      name: 'Admin',
+      role: 'admin'
+    });
+    console.log(`Admin user created: ${adminEmail}`);
+  }
+}
+
 async function start() {
   await runMigrations();
+  await seedAdmin();
   serve({ fetch: app.fetch, port }, (info) => {
     console.log(`Server running on http://localhost:${info.port}`);
   });

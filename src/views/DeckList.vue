@@ -167,6 +167,12 @@ onMounted(() => {
           <button @click="router.push({ name: 'DeckManagement' })" class="manage-button">
             Manage Decks
           </button>
+          <button @click="router.push({ name: 'MyProfile' })" class="profile-button">
+            My Profile
+          </button>
+          <button v-if="authStore.isAdmin" @click="router.push({ name: 'UserManagement' })" class="admin-button">
+            Users
+          </button>
           <button @click="authStore.logout" class="logout-button">
             Logout
           </button>
@@ -341,6 +347,8 @@ onMounted(() => {
 
   .progress-button,
   .manage-button,
+  .profile-button,
+  .admin-button,
   .logout-button,
   .login-button-header,
   .register-button-header {
@@ -355,11 +363,20 @@ onMounted(() => {
   }
 
   .progress-button,
-  .manage-button {
+  .manage-button,
+  .profile-button {
     background-color: #34495e;
 
     &:hover {
-      background-color: #2c3e50;
+      background-color: #4a6274;
+    }
+  }
+
+  .admin-button {
+    background-color: #667eea;
+
+    &:hover {
+      background-color: #5a6fd6;
     }
   }
 
@@ -628,7 +645,9 @@ onMounted(() => {
     }
 
     .progress-button,
-    .manage-button {
+    .manage-button,
+    .profile-button,
+    .admin-button {
       width: 100%;
     }
   }
