@@ -160,7 +160,7 @@ onMounted(() => {
     <header class="header">
       <div class="header-top">
         <h1>My Flash Cards</h1>
-        <button class="hamburger" @click="menuOpen = !menuOpen" aria-label="Toggle menu">
+        <button class="hamburger" @click="menuOpen = !menuOpen"  :class="{ open: menuOpen }" aria-label="Toggle menu">
           <span class="hamburger-line"></span>
           <span class="hamburger-line"></span>
           <span class="hamburger-line"></span>
@@ -362,6 +362,21 @@ onMounted(() => {
       height: 3px;
       background-color: white;
       border-radius: 2px;
+      transition: all 0.3s ease;
+      transform-origin: center;
+    }
+
+    // Animate to X when open
+    &.open .hamburger-line:nth-child(1) {
+      transform: rotate(45deg) translateY(11px);
+    }
+
+    &.open .hamburger-line:nth-child(2) {
+      opacity: 0;
+    }
+
+    &.open .hamburger-line:nth-child(3) {
+      transform: rotate(-45deg) translateY(-11px);
     }
   }
 
