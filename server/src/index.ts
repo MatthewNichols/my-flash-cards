@@ -5,7 +5,7 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { eq, sql, and } from 'drizzle-orm';
-import { db } from './db.js';
+import { db, runMigrations } from './db.js';
 import { decks, cards, cardAttempts, cardSchedule, users, sessions } from './schema.js';
 import type { DeckResponse, CardResponse } from './types.js';
 import { calculateNextReview, initializeSchedule, isCardDue } from './spacedRepetition.js';
@@ -822,11 +822,13 @@ if (process.env.NODE_ENV === 'production') {
 
 const port = parseInt(process.env.PORT || '3001');
 
-serve({
-  fetch: app.fetch,
-  port,
-}, (info) => {
-  console.log(`Server running on http://localhost:${info.port}`);
-});
+async function start() {
+  await runMigrations();
+  serve({ fetch: app.fetch, port }, (info) => {
+    console.log(`Server running on http://localhost:${info.port}`);
+  });
+}
+
+start();
 
 export default app;
